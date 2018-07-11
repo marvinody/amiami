@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup, element
 from math import ceil
+import re
+
 class SimpleItem:
     def __init__(self, *args, **kwargs):
         self.productURL = kwargs['productURL']
@@ -18,7 +20,14 @@ class SimpleItem:
             'price': product_box_soup.find('li',class_='product_price').text.strip(),
 
         }
+        # process some stuff
+        data['price'] = re.search("((\d{1,3}),?)+[^%] JPY", data['price']).group(0)
+        data['price'] = removeSuffix(data['price'], " JPY")
         return SimpleItem(**data)
+
+def removeSuffix(str, suffix):
+    if str.endswith(suffix):
+        return str[: -1*len(suffix)]
 
 class Item(SimpleItem):
     def __init__(self, *args, **kwargs):
@@ -31,6 +40,7 @@ class Item(SimpleItem):
     def use(simpleItem: SimpleItem):
         url = simpleItem.productURL
         data = vars(simpleItem)
+        data['brand'] = ""
         soup = BeautifulSoup(requests.get(url).text, 'html5lib')
         right_menu = soup.find(id="right_menu")
         inputs = right_menu.find_all('input')
@@ -43,7 +53,8 @@ class Item(SimpleItem):
                 raise Exception("NEW UNSEEN AVAILABILITY DETECTED: {}".format(avail))
             data['availability'] = avail
         # find the brand title, go up, go 2 next, and get the text
-        data['brand'] = right_menu.find(string='Brand').parent.next_sibling.next_sibling.find('a').text
+        if right_menu.find(string='Brand'):
+            data['brand'] = right_menu.find(string='Brand').parent.next_sibling.next_sibling.find('a').text
         data['productCode'] = right_menu.find(string='Item Code').parent.next_sibling.next_sibling.text
         return Item(**data)
 
@@ -92,9 +103,7 @@ def search(keywords: str) -> ResultSet:
         "pagemax": PER_PAGE
     }
     rs = ResultSet()
-    response = requests.get(SEARCH_URL.format(**data))
-    print(response.url)
-    rs.parse(response.text)
+    rs.parse(requests.get(SEARCH_URL.format(**data)).text)
     while data['page'] < rs.pages:
         data['page'] += 1
         rs.parse(requests.get(SEARCH_URL.format(**data)).text)
