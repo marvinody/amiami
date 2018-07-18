@@ -9,17 +9,19 @@ class SimpleItem:
         self.imageURL = kwargs['imageURL']
         self.productName = kwargs['productName']
         self.price = kwargs['price']
+        self.productCode = kwargs['productCode']
 
     @staticmethod
     def parse(product_box_soup: element.Tag):
         data = {
             'productURL': product_box_soup.find('a')['href'],
+            'productCode': product_box_soup.find('a')['href'],
             'imageURL': product_box_soup.find('img')['src'],
             'productName': product_box_soup.find_all('a')[1].text,
             # for some reason, it has a bunch of tabs everywhere for spacing
             'price': product_box_soup.find('li',class_='product_price').text.strip(),
-
         }
+        data['productCode'] = re.search('gcode=(.*?)&', data['productCode']).group(1)
         # process some stuff
         data['price'] = re.search("((\d{1,3}),?)+[^%] JPY", data['price']).group(0)
         data['price'] = removeSuffix(data['price'], " JPY")
@@ -34,29 +36,30 @@ class Item(SimpleItem):
         super().__init__(**kwargs)
         self.availability = kwargs['availability']
         self.brand = kwargs['brand']
-        self.productCode = kwargs['productCode']
 
     @staticmethod
     def use(simpleItem: SimpleItem):
-        url = simpleItem.productURL
-        data = vars(simpleItem)
-        data['brand'] = ""
-        soup = BeautifulSoup(requests.get(url).text, 'html5lib')
-        right_menu = soup.find(id="right_menu")
-        inputs = right_menu.find_all('input')
-        data['productCode'] = inputs[0]['value']
-        if len(inputs) == 3:
-            data['availability'] = inputs[2]['alt']
-        else:
-            avail = right_menu.find('span').find('img')['alt']
-            if avail != u'OrdersClosed':
-                raise Exception("NEW UNSEEN AVAILABILITY DETECTED: {}".format(avail))
-            data['availability'] = avail
-        # find the brand title, go up, go 2 next, and get the text
-        if right_menu.find(string='Brand'):
-            data['brand'] = right_menu.find(string='Brand').parent.next_sibling.next_sibling.find('a').text
-        data['productCode'] = right_menu.find(string='Item Code').parent.next_sibling.next_sibling.text
-        return Item(**data)
+        try:
+            url = simpleItem.productURL
+            data = vars(simpleItem)
+            data['brand'] = ""
+            soup = BeautifulSoup(requests.get(url).text, 'html5lib')
+            right_menu = soup.find(id="right_menu")
+            inputs = right_menu.find_all('input')
+            if len(inputs) == 3:
+                data['availability'] = inputs[2]['alt']
+            else:
+                avail = right_menu.find('span').find('img')['alt']
+                if avail != u'OrdersClosed':
+                    raise Exception("NEW UNSEEN AVAILABILITY DETECTED: {}".format(avail))
+                data['availability'] = avail
+            # find the brand title, go up, go 2 next, and get the text
+            if right_menu.find(string='Brand'):
+                data['brand'] = right_menu.find(string='Brand').parent.next_sibling.next_sibling.find('a').text
+            return Item(**data)
+        except AttributeError as e:
+            print(soup)
+            raise e
 
 
 class ResultSet:
@@ -97,6 +100,7 @@ class ResultSet:
 SEARCH_URL = "http://slist.amiami.com/top/search/list?s_keywords={query}&pagemax={pagemax}&getcnt=0&pagecnt={page}"
 PER_PAGE = 40
 def search(keywords: str) -> ResultSet:
+    print("hello")
     data = {
         "query": keywords,
         "page": 1,
