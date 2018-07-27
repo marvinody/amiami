@@ -2,7 +2,9 @@ import requests
 from bs4 import BeautifulSoup, element
 from math import ceil
 import re
+from urllib.parse import urlencode
 
+rootURL = "https://www.amiami.com"
 class SimpleItem:
     def __init__(self, *args, **kwargs):
         self.productURL = kwargs['productURL']
@@ -14,17 +16,16 @@ class SimpleItem:
     @staticmethod
     def parse(product_box_soup: element.Tag):
         data = {
-            'productURL': product_box_soup.find('a')['href'],
+            'productURL': "{}{}".format(rootURL, product_box_soup.find('a')['href']),
             'productCode': product_box_soup.find('a')['href'],
             'imageURL': product_box_soup.find('img')['src'],
-            'productName': product_box_soup.find_all('a')[1].text,
+            'productName': product_box_soup.find("p",class_="newly-added-items__item__name").text,
             # for some reason, it has a bunch of tabs everywhere for spacing
-            'price': product_box_soup.find('li',class_='product_price').text.strip(),
+            'price': product_box_soup.find("p", class_="newly-added-items__item__price").text.strip(),
         }
-        data['productCode'] = re.search('gcode=(.*?)&', data['productCode']).group(1)
+        data['productCode'] = re.search('gcode=(.*)', data['productCode']).group(1)
         # process some stuff
-        data['price'] = re.search("((\d{1,3}),?)+[^%] JPY", data['price']).group(0)
-        data['price'] = removeSuffix(data['price'], " JPY")
+        data['price'] = re.search("(.*)[^,\d]", data['price']).group(1)
         return SimpleItem(**data)
 
 def removeSuffix(str, suffix):
@@ -35,27 +36,38 @@ class Item(SimpleItem):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.availability = kwargs['availability']
-        self.brand = kwargs['brand']
+        self.about = kwargs['about']
 
     @staticmethod
     def use(simpleItem: SimpleItem):
         try:
             url = simpleItem.productURL
             data = vars(simpleItem)
-            data['brand'] = ""
-            soup = BeautifulSoup(requests.get(url).text, 'html5lib')
-            right_menu = soup.find(id="right_menu")
-            inputs = right_menu.find_all('input')
-            if len(inputs) == 3:
-                data['availability'] = inputs[2]['alt']
-            else:
-                avail = right_menu.find('span').find('img')['alt']
-                if avail != u'OrdersClosed':
-                    raise Exception("NEW UNSEEN AVAILABILITY DETECTED: {}".format(avail))
-                data['availability'] = avail
-            # find the brand title, go up, go 2 next, and get the text
-            if right_menu.find(string='Brand'):
-                data['brand'] = right_menu.find(string='Brand').parent.next_sibling.next_sibling.find('a').text
+            data['about'] = {}
+            r = requests.get(RENDER_URL,
+                params={
+                    'url':url,
+                    'wait':2})
+            soup = BeautifulSoup(r.text, 'html.parser')
+
+            data.productName = soup.find('h2', class_='item-detail__section-title').text
+
+            def shown_btn_cart(tag):
+                return "btn-cart" in tag['class'] and tag['style'] != "display: none;"
+
+            a = soup.find("div", class_="item-detail__operation__inner").find(shown_btn_cart)
+            data['availability'] = a.text
+
+            abouts = soup.find("section", class_="item-about").find_all("dt", class_="item-about__data-title")
+            for titleTag in abouts:
+                sib = titleTag.next_sibling
+                # skip if it doesn't have a corresponding text, should never happen
+                if 'item-about__data-text' not in sib['class']:
+                    continue
+                key = titleTag.text.replace(' ', '')
+                val = sib.text
+                data['about'][key] = val
+
             return Item(**data)
         except AttributeError as e:
             print(soup)
@@ -69,6 +81,7 @@ class ResultSet:
         self.maxItems = -1
         self.init = False
         self.pages = -1
+        self._itemCount = 0
 
     def get(self, idx: int) -> Item:
         item = self.items[idx]
@@ -81,34 +94,42 @@ class ResultSet:
         self.items.append(SimpleItem.parse(product_box_soup))
 
     def parse(self, html):
+    # returns true when done
+    # false if can be called again
         soup = BeautifulSoup(html, 'html.parser')
         if not self.init:
-            countElm = soup.find('font', class_='count')
+            countElm = soup.find('p', class_='search-result__text')
             if not countElm:
                 self.maxItems = 0
                 self.pages = 0
                 self.init = True
-                return
-            self.maxItems = int(countElm.text)
+                return True
+            # countElm.text := "81-100 of 3377 results" or something
+            self.maxItems = int(re.search('of (\d+)', countElm.text).group(1))
             self.pages = int(ceil(self.maxItems / float(PER_PAGE)))
             self.init = True
-        for product_box in soup.find_all('td', class_='product_box'):
+        for product_box in soup.find_all('li', class_='newly-added-items__item'):
             self.add(product_box)
+            self._itemCount += 1
 
+        return self._itemCount == self.maxItems
 
-
-SEARCH_URL = "http://slist.amiami.com/top/search/list?s_keywords={query}&pagemax={pagemax}&getcnt=0&pagecnt={page}"
-PER_PAGE = 40
+# 172... is the local ip of docker service containing splash service
+# wait about 5s to be sure that everything loaded
+# need to make this dynamic eventually and allow ip to be passed
+RENDER_URL = "http://172.17.0.2:8050/render.html"
+PER_PAGE = 20 # this is hardcoded and not really used tho
 def search(keywords: str) -> ResultSet:
-    print("hello")
+    print("hell1o")
     data = {
-        "query": keywords,
-        "page": 1,
-        "pagemax": PER_PAGE
+        "s_keywords": keywords,
+        "pagecnt": 1,
     }
     rs = ResultSet()
-    rs.parse(requests.get(SEARCH_URL.format(**data)).text)
-    while data['page'] < rs.pages:
-        data['page'] += 1
-        rs.parse(requests.get(SEARCH_URL.format(**data)).text)
+    while not rs.parse(requests.get(RENDER_URL,
+        params={
+            'url':'https://www.amiami.com/eng/search/list?{}'.format(urlencode(data)),
+            'wait':5}).text):
+
+        data['pagecnt'] += 1
     return rs
