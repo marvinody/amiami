@@ -40,38 +40,45 @@ class Item(SimpleItem):
 
     @staticmethod
     def use(simpleItem: SimpleItem):
-        try:
-            url = simpleItem.productURL
-            data = vars(simpleItem)
-            data['about'] = {}
-            r = requests.get(RENDER_URL,
-                params={
-                    'url':url,
-                    'wait':2})
-            soup = BeautifulSoup(r.text, 'html.parser')
+        MAX_ATTEMPTS = 10
+        currAttempt = 0
+        while currAttempt < MAX_ATTEMPTS:
+            try:
+                url = simpleItem.productURL
+                data = vars(simpleItem)
+                data['about'] = {}
+                r = requests.get(RENDER_URL,
+                    params={
+                        'url':url,
+                        'wait':3})
+                soup = BeautifulSoup(r.text, 'html.parser')
 
-            data.productName = soup.find('h2', class_='item-detail__section-title').text
+                data['productName'] = soup.find('h2', class_='item-detail__section-title').text
 
-            def shown_btn_cart(tag):
-                return "btn-cart" in tag['class'] and tag['style'] != "display: none;"
+                def shown_btn_cart(tag):
+                    return "btn-cart" in tag['class'] and tag['style'] != "display: none;"
 
-            a = soup.find("div", class_="item-detail__operation__inner").find(shown_btn_cart)
-            data['availability'] = a.text
+                a = soup.find("div", class_="item-detail__operation__inner").find(shown_btn_cart)
+                data['availability'] = a.text
 
-            abouts = soup.find("section", class_="item-about").find_all("dt", class_="item-about__data-title")
-            for titleTag in abouts:
-                sib = titleTag.next_sibling
-                # skip if it doesn't have a corresponding text, should never happen
-                if 'item-about__data-text' not in sib['class']:
-                    continue
-                key = titleTag.text.replace(' ', '')
-                val = sib.text
-                data['about'][key] = val
+                abouts = soup.find("section", class_="item-about").find_all("dt", class_="item-about__data-title")
+                for titleTag in abouts:
+                    sib = titleTag.next_sibling
+                    # skip if it doesn't have a corresponding text, should never happen
+                    if 'item-about__data-text' not in sib['class']:
+                        continue
+                    key = titleTag.text.replace(' ', '')
+                    val = sib.text
+                    data['about'][key] = val
 
-            return Item(**data)
-        except AttributeError as e:
-            print(soup)
-            raise e
+                return Item(**data)
+            except AttributeError as e:
+                #print(soup)
+                currAttempt += 1
+                print("Retrying page load, failed {} time(s)".format(currAttempt))
+                continue
+        else:
+            raise AttributeError("Could not successfully generate info")
 
 
 class ResultSet:
@@ -117,7 +124,7 @@ class ResultSet:
 # 172... is the local ip of docker service containing splash service
 # wait about 5s to be sure that everything loaded
 # need to make this dynamic eventually and allow ip to be passed
-RENDER_URL = "http://172.17.0.2:8050/render.html"
+RENDER_URL = "http://172.17.0.1:8080/render.html"
 PER_PAGE = 20 # this is hardcoded and not really used tho
 def search(keywords: str) -> ResultSet:
     print("hell1o")
