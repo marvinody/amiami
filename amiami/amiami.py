@@ -1,14 +1,8 @@
 import requests
-from bs4 import BeautifulSoup, element
 from math import ceil
-import re
-from urllib.parse import urlencode
 
 rootURL = "https://api.amiami.com/api/v1.0/items"
 PER_PAGE = 30
-def removeSuffix(str, suffix):
-    if str.endswith(suffix):
-        return str[: -1*len(suffix)]
 
 class Item:
     def __init__(self, *args, **kwargs):
