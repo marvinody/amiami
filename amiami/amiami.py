@@ -12,6 +12,7 @@ class Item:
         self.price = kwargs['price']
         self.productCode = kwargs['productCode']
         self.availability = kwargs['availability']
+        self.flags = kwargs['flags']
 
 class ResultSet:
 
@@ -23,10 +24,33 @@ class ResultSet:
         self._itemCount = 0
 
     def add(self, productInfo):
+        # for future reference
+        # there seems to be 3 different stock flags
+        # stock, stock_flg and instock_flg
+        # stock seems to be only for the item page itself, not the results page
+        # stock_flg seems to be 1 everywhere no matter what
+        # instock_flg seems to be 1 when you can click to order the item HOWEVER
+        # instock_flg will be 0 on the item page itself, but not on the results
+        # therefore, we use instock since we're using results page
         inStock = productInfo['instock_flg'] == 1
+        # is_closed seems to reflect whether or not the item is actually closed
         isClosed = productInfo['order_closed_flg'] == 1
+        # the next 2 seemed simple enough
         isPreorder = productInfo['preorderitem'] == 1
         isBackorder = productInfo['list_backorder_available'] == 1
+        # this was found by looking at the filter they provide and seeing the
+        # s_st_condition_flag query they pass. Not sure entirely yet, but seems
+        # to be ok so far?
+        isPreOwned = productInfo['condition_flg'] == 1
+        # finally, we have these
+        flags = {
+            "instock": inStock,
+            "isclosed": isClosed,
+            "ispreorder": isPreorder,
+            "isbackorder": isBackorder,
+            "ispreowned": isPreOwned,
+        }
+        availability = "Unknown status?"
         if isClosed:
             if isPreorder:
                 availability = "Pre-order Closed"
@@ -39,8 +63,17 @@ class ResultSet:
         else:
             if isPreorder and inStock:
                 availability = "Pre-order"
+            elif isPreOwned and inStock:
+                availability = "Pre-owned"
             elif inStock:
                 availability = "Available"
+
+        if availability == "Unknown status?":
+            print("STATUS ERROR FOR {}: flags:{}, avail:{}",
+                productInfo['gcode'],
+                flags,
+                availability,
+            )
         item = Item(
             productURL="https://www.amiami.com/eng/detail/?gcode={}".format(productInfo['gcode']),
             imageURL="https://img.amiami.com{}".format(productInfo['thumb_url']),
@@ -48,6 +81,7 @@ class ResultSet:
             price=productInfo['c_price_taxed'],
             productCode=productInfo['gcode'],
             availability=availability,
+            flags=flags,
         )
         self.items.append(item)
 
