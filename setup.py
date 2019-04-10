@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='amiami',
-    version='0.0.1',
+    version='0.0.2',
     author='marvinody',
     author_email='manny@sadpanda.moe',
     description='amiami lame api scraper that works through the api',
