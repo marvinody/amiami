@@ -69,11 +69,11 @@ class ResultSet:
                 availability = "Available"
 
         if availability == "Unknown status?":
-            print("STATUS ERROR FOR {}: flags:{}, avail:{}",
+            print("STATUS ERROR FOR {}: flags:{}, avail:{}".format(
                 productInfo['gcode'],
                 flags,
                 availability,
-            )
+            ))
         item = Item(
             productURL="https://www.amiami.com/eng/detail/?gcode={}".format(productInfo['gcode']),
             imageURL="https://img.amiami.com{}".format(productInfo['thumb_url']),
@@ -98,7 +98,7 @@ class ResultSet:
 
         return self._itemCount == self.maxItems
 
-def search(keywords: str) -> ResultSet:
+def search(keywords):
     data = {
         "s_keywords": keywords,
         "pagecnt": 1,
