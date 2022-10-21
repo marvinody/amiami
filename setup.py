@@ -8,9 +8,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='amiami',
-    version='0.0.2',
+    version='0.0.3',
     author='marvinody',
-    author_email='manny@sadpanda.moe',
+    author_email='manny@amiami.sadpanda.moe',
     description='amiami api wrapper',
     long_description=long_description,
     long_description_content_type="text/markdown",

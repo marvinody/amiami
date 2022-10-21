@@ -1,4 +1,4 @@
-import requests
+import httpx
 from math import ceil
 
 rootURL = "https://api.amiami.com/api/v1.0/items"
@@ -63,6 +63,8 @@ class ResultSet:
         else:
             if isPreorder and inStock:
                 availability = "Pre-order"
+            if isPreorder and not inStock:
+                availability = "Pre-order Closed"
             elif isPreOwned and inStock:
                 availability = "Pre-owned"
             elif inStock:
@@ -106,10 +108,16 @@ def search(keywords):
         "lang": "eng",
     }
     headers = {
-        "X-User-Key": "amiami_dev"
+        "X-User-Key": "amiami_dev",
+        "User-Agent": "python-amiami_dev",
     }
-    rs = ResultSet()
-    while not rs.parse(requests.get(rootURL, data, headers=headers).json()):
-        data['pagecnt'] += 1
+
+    with httpx.Client() as client:
+        rs = ResultSet()
+        hasMore = True
+        while hasMore:
+            resp = client.get(rootURL, params=data, headers=headers)
+            hasMore = rs.parse(resp.json())
+            data['pagecnt'] += 1
 
     return rs
