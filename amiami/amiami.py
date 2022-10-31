@@ -117,7 +117,7 @@ def search(keywords):
         hasMore = True
         while hasMore:
             resp = client.get(rootURL, params=data, headers=headers)
-            hasMore = rs.parse(resp.json())
+            hasMore = not rs.parse(resp.json())
             data['pagecnt'] += 1
 
     return rs
