@@ -9,7 +9,7 @@ import amiami
 
 results = amiami.search("fumofumo plush")
 for item in results.items:
-  print("{}, {}".format(item.productName, item.productURL))
+  print("{}, {}".format(item.productName, item.availability))
 ```
 
 
