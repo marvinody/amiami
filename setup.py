@@ -8,16 +8,16 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='amiami',
-    version='0.0.8',
+    version='0.0.9',
     author='marvinody',
     author_email='manny@amiami.sadpanda.moe',
     description='amiami api wrapper',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://bitbucket.org/marvinody/amiami/',
+    url='https://github.com/marvinody/amiami',
     packages=setuptools.find_packages(),
     install_requires=requirements,
     classifiers=[
-        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.10",
     ]
 )

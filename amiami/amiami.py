@@ -1,5 +1,7 @@
-import httpx
 from math import ceil
+# import logging
+from curl_cffi import requests
+
 
 rootURL = "https://api.amiami.com/api/v1.0/items"
 PER_PAGE = 30
@@ -100,6 +102,13 @@ class ResultSet:
 
         return self._itemCount == self.maxItems
 
+# leaving this here because I need it every time some shit breaks and don't wanna dig it up
+# logging.basicConfig(
+#     format="%(levelname)s [%(asctime)s] %(name)s - %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+#     level=logging.DEBUG
+# )
+
 def search(keywords):
     data = {
         "s_keywords": keywords,
@@ -112,12 +121,11 @@ def search(keywords):
         "User-Agent": "python-amiami_dev",
     }
 
-    with httpx.Client() as client:
-        rs = ResultSet()
-        hasMore = True
-        while hasMore:
-            resp = client.get(rootURL, params=data, headers=headers)
-            hasMore = not rs.parse(resp.json())
-            data['pagecnt'] += 1
+    rs = ResultSet()
+    hasMore = True
+    while hasMore:
+        resp = requests.get(rootURL, params=data, headers=headers, impersonate="chrome110")
+        hasMore = not rs.parse(resp.json())
+        data['pagecnt'] += 1
 
     return rs
