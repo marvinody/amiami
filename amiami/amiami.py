@@ -26,33 +26,23 @@ class ResultSet:
         self._itemCount = 0
 
     def add(self, productInfo):
-        # for future reference
-        # there seems to be 3 different stock flags
-        # stock, stock_flg and instock_flg
-        # stock seems to be only for the item page itself, not the results page
-        # stock_flg seems to be 1 everywhere no matter what
-        # instock_flg seems to be 1 when you can click to order the item HOWEVER
-        # instock_flg will be 0 on the item page itself, but not on the results
-        # therefore, we use instock since we're using results page
-        inStock = productInfo['instock_flg'] == 1
-        # is_closed seems to reflect whether or not the item is actually closed
-        isClosed = productInfo['order_closed_flg'] == 1
-        # the next 2 seemed simple enough
+       
+        availability = "Unknown status?"
+        isSale = productInfo['saleitem'] == 1
+        isLimited = productInfo['list_store_bonus'] == 1 or productInfo['list_amiami_limited'] == 1
+        isPreowned = productInfo['condition_flg'] == 1
         isPreorder = productInfo['preorderitem'] == 1
         isBackorder = productInfo['list_backorder_available'] == 1
-        # this was found by looking at the filter they provide and seeing the
-        # s_st_condition_flag query they pass. Not sure entirely yet, but seems
-        # to be ok so far?
-        isPreOwned = productInfo['condition_flg'] == 1
-        # finally, we have these
+        isClosed = productInfo['order_closed_flg'] == 1
+        
         flags = {
-            "instock": inStock,
-            "isclosed": isClosed,
-            "ispreorder": isPreorder,
-            "isbackorder": isBackorder,
-            "ispreowned": isPreOwned,
+            "isSale": isSale,
+            "isLimited": isLimited,
+            "isPreowned": isPreowned,
+            "isPreorder": isPreorder,
+            "isBackorder": isBackorder,
+            "isClosed": isClosed,
         }
-        availability = "Unknown status?"
         if isClosed:
             if isPreorder:
                 availability = "Pre-order Closed"
@@ -60,16 +50,18 @@ class ResultSet:
                 availability = "Back-order Closed"
             else:
                 availability = "Order Closed"
-        elif isBackorder:
-            availability = "Back-order"
         else:
-            if isPreorder and inStock:
+            if isPreorder:
                 availability = "Pre-order"
-            if isPreorder and not inStock:
-                availability = "Pre-order Closed"
-            elif isPreOwned and inStock:
+            elif isBackorder:
+                availability = "Back-order"
+            elif isPreowned:
                 availability = "Pre-owned"
-            elif inStock:
+            elif isLimited:
+                availability = "Limited"
+            elif isSale:
+                availability = "On Sale"
+            else:
                 availability = "Available"
 
         if availability == "Unknown status?":
