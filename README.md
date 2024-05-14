@@ -14,3 +14,7 @@ for item in results.items:
 
 
 Sometimes items tend to result in an unknown status because the flag -> state parsing is a bit rough. These items will be added to the list with a status of `Unknown status?`. They will also print out a message with the flags and item code. Good to check your log and see what's going on.
+
+
+
+`twine upload dist/amiami-0.0.10.tar.gz -u marvinody -p $PYPI_TOKEN`
