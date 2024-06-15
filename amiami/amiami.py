@@ -18,14 +18,53 @@ class Item:
 
 class ResultSet:
 
-    def __init__(self):
+    def __init__(self, keyword, proxies = None):
+        self.keyword = keyword
+        self.proxies = proxies
         self.items = []
         self.maxItems = -1
         self.init = False
+        self.currentPage = 0
         self.pages = -1
         self._itemCount = 0
 
-    def add(self, productInfo):
+    # tostring, print out item count, current page, max items, hasMore
+    def __str__(self):
+        return "ResultSet: itemCount={}, currentPage={}, maxItems={}, hasMore={}".format(
+            self._itemCount,
+            self.currentPage,
+            self.maxItems,
+            self.hasMore,
+        )
+
+    @property
+    def hasMore(self):
+        return self._itemCount < self.maxItems
+
+    # def getNextPage(self):
+    #     if self.hasMore:
+    #         self.currentPage += 1
+    #         return search_page(self.keyword, self.currentPage, self.proxies)
+    #     else:
+    #         return None
+
+    def searchNextPage(self):
+        data = {
+            "s_keywords": self.keyword,
+            "pagecnt": self.currentPage + 1,
+            "pagemax": PER_PAGE,
+            "lang": "eng",
+        }
+        headers = {
+            "X-User-Key": "amiami_dev",
+            "User-Agent": "python-amiami_dev",
+        }
+        resp = requests.get(rootURL, params=data, headers=headers, impersonate="chrome110", proxies=self.proxies)
+        self.__parse(resp.json())
+        self.currentPage += 1
+
+
+    def __add(self, productInfo):
        
         availability = "Unknown status?"
         isSale = productInfo['saleitem'] == 1
@@ -81,7 +120,7 @@ class ResultSet:
         )
         self.items.append(item)
 
-    def parse(self, obj):
+    def __parse(self, obj):
         # returns true when done
         # false if can be called again
         if not self.init:
@@ -89,7 +128,7 @@ class ResultSet:
             self.pages = int(ceil(self.maxItems / float(PER_PAGE)))
             self.init = True
         for productInfo in obj['items']:
-            self.add(productInfo)
+            self.__add(productInfo)
             self._itemCount += 1
 
         return self._itemCount == self.maxItems
@@ -101,23 +140,17 @@ class ResultSet:
 #     level=logging.DEBUG
 # )
 
-def search(keywords):
-    data = {
-        "s_keywords": keywords,
-        "pagecnt": 1,
-        "pagemax": PER_PAGE,
-        "lang": "eng",
-    }
-    headers = {
-        "X-User-Key": "amiami_dev",
-        "User-Agent": "python-amiami_dev",
-    }
+def search(keywords, proxies=None):
+    rs = searchPaginated(keywords=keywords, proxies=proxies)
 
-    rs = ResultSet()
-    hasMore = True
-    while hasMore:
-        resp = requests.get(rootURL, params=data, headers=headers, impersonate="chrome110")
-        hasMore = not rs.parse(resp.json())
-        data['pagecnt'] += 1
+    while rs.hasMore:
+        rs.searchNextPage()
+
+    return rs
+
+
+def searchPaginated(keywords, proxies=None):
+    rs = ResultSet(keyword=keywords, proxies=proxies)
+    rs.searchNextPage()
 
     return rs
