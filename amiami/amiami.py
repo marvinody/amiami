@@ -12,6 +12,8 @@ class Item:
         self.imageURL = kwargs['imageURL']
         self.productName = kwargs['productName']
         self.price = kwargs['price']
+        self.minPrice = kwargs['minPrice']
+        self.maxPrice = kwargs['maxPrice']
         self.productCode = kwargs['productCode']
         self.availability = kwargs['availability']
         self.flags = kwargs['flags']
@@ -114,6 +116,8 @@ class ResultSet:
             imageURL="https://img.amiami.com{}".format(productInfo['thumb_url']),
             productName=productInfo['gname'],
             price=productInfo['c_price_taxed'],
+            minPrice=productInfo['min_price'],
+            maxPrice=productInfo['max_price'],
             productCode=productInfo['gcode'],
             availability=availability,
             flags=flags,
