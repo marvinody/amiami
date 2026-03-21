@@ -6,6 +6,13 @@ from curl_cffi import requests
 rootURL = "https://api.amiami.com/api/v1.0/items"
 PER_PAGE = 30
 
+_impersonate = "chrome110"
+
+def set_impersonate(browser):
+    # use if you need to change the version for some reason - cloudflare is shit
+    global _impersonate
+    _impersonate = browser
+
 class Item:
     def __init__(self, *args, **kwargs):
         self.productURL = kwargs['productURL']
@@ -61,7 +68,7 @@ class ResultSet:
             "X-User-Key": "amiami_dev",
             "User-Agent": "python-amiami_dev",
         }
-        resp = requests.get(rootURL, params=data, headers=headers, impersonate="chrome110", proxies=self.proxies)
+        resp = requests.get(rootURL, params=data, headers=headers, impersonate=_impersonate, proxies=self.proxies)
         self.__parse(resp.json())
         self.currentPage += 1
 
