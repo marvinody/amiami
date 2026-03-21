@@ -1,1 +1,1 @@
-from .amiami import search, searchPaginated
+from .amiami import search, searchPaginated, set_impersonate
